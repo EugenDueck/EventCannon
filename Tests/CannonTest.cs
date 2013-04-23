@@ -11,24 +11,29 @@ namespace Tests
     public class CannonTest
     {
 
+#if !__MonoCS__
         [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
         public static extern uint TimeBeginPeriod(uint uMilliseconds);
 
         [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
         public static extern uint TimeEndPeriod(uint uMilliseconds);
-
+#endif
         public static void MyClassCleanup()
         {
+#if !__MonoCS__
             TimeEndPeriod(1);
+#endif
         }
 
         public static void Main(string[] args)
         {
+#if !__MonoCS__
             if (TimeBeginPeriod(1) != 0)
                 throw new Exception("Call to TimeBeginPeriod(1) not successful!");
 
             try
             {
+#endif
                 int lastCurrentRate = 0;
                 const int checkRateCount = 10;
                 var actualRates = new List<int>(checkRateCount);
@@ -64,11 +69,14 @@ namespace Tests
                         }
                     }
                 }
+#if !__MonoCS__
             }
             finally
             {
                 TimeEndPeriod(1);
             }
+#endif
+			Console.ReadKey();
         }
 
         private static Tuple<int, double, int, int> GetMinMeanMedianMax(IEnumerable<int> values)
