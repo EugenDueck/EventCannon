@@ -76,7 +76,7 @@ namespace EventCannon
                             _lastRatePerSecond = (int)actualRate;
                             double newSleepMicrosBetweenEvents = Math.Max(1, ((double)currentSleepMicrosBetweenEvents / curEventsPerSecTarget) * actualRate);
                             currentSleepMicrosBetweenEvents = (int)
-                                (0.33 * currentSleepMicrosBetweenEvents + 0.67 * newSleepMicrosBetweenEvents);
+                                (0.3 * currentSleepMicrosBetweenEvents + 0.7 * newSleepMicrosBetweenEvents);
                             eventsInThisInterval = 0;
                             sw.Restart();
                         }
@@ -85,7 +85,7 @@ namespace EventCannon
                 else
                 {
                     lastEventsPerSecTarget = curEventsPerSecTarget;
-                    Thread.Sleep(0);
+                    Thread.Sleep(1);
                 }
             }
         }
