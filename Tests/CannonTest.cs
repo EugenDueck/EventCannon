@@ -19,12 +19,6 @@ namespace Tests
         [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
         public static extern uint TimeEndPeriod(uint uMilliseconds);
 #endif
-        public static void MyClassCleanup()
-        {
-#if !__MonoCS__
-            TimeEndPeriod(1);
-#endif
-        }
 
         public static void Main(string[] args)
         {
