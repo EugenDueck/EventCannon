@@ -18,7 +18,7 @@ If you have any issues with it, let me know via GitHub's issues.
 # Example Usage
     
 ## Hello World
-
+```C#
     Action<int> action = currentRate => Console.WriteLine(currentRate); // print current actual rate
     using (var cannon = new Cannon(action))
 	{
@@ -26,9 +26,10 @@ If you have any issues with it, let me know via GitHub's issues.
         Thread.Sleep(5000);
         cannon.SetEventsPerSecond(0);
     }
+```
 
 ## Simple accuracy check
-
+```C#
     long n = 200000;
     long totalEvents = 0;
     int targetRate = 17000;
@@ -46,12 +47,13 @@ If you have any issues with it, let me know via GitHub's issues.
               actualRate, (actualRate - targetRate) / targetRate);
     }
     Console.ReadKey();
+```
 
 # Accuracy
 
 A simple and not at all rigorous test, so take these as ballpark figures. I let the cannon fire for some 10 seconds each.
 
-To sum up the Windows figures: The best result was achieved at 5kHz, the cannon was only 0.2% too fast on average, the worst was the highest rate of 500kHz, where the cannon just couldn't keep up and was able to maintain roughly half the target rate.
+To sum up the Windows figures: The best result was achieved at **5kHz**, the cannon was only **0.2% too fast on average**, the worst was the highest tested rate of **500kHz**, where the cannon just couldn't keep up and was **able to maintain roughly half the target rate**.
 
 ## i5-2400 3.1GHz, 4core, Windows 7, 64bit VMWare guest, .net 4
 
