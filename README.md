@@ -22,7 +22,7 @@ If you have any issues with it, let me know via GitHub's issues.
     Action<int> action = currentRate => Console.WriteLine(currentRate); // print current actual rate
     using (var cannon = new Cannon(action))
 	{
-        cannon.SetEventsPerSecond(3); // Only 3Hz, we are writing to the console every single time, after all!
+        cannon.SetEventsPerSecond(3); // Only 3Hz, we are writing to the console every single time!
         Thread.Sleep(5000);
         cannon.SetEventsPerSecond(0);
     }
