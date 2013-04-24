@@ -29,15 +29,19 @@ namespace Tests
             try
             {
 #endif
+				int workerSpin = 10;
+				Console.WriteLine ("WorkerSpin: " + workerSpin);
                 int lastCurrentRate = 0;
                 const int checkRateCount = 50;
 				long totalEvents = 0;
+				long totalSpun = 0;
                 var actualRates = new List<int>(checkRateCount);
                 Cannon cannon = null;
 				Stopwatch sw = new Stopwatch();
-				Action<int> action = currentRate =>
+				Action<int, long> action = (currentRate, spun) =>
                     {
 						Interlocked.Increment (ref totalEvents);
+						Interlocked.Add(ref totalSpun, spun);
                         if (lastCurrentRate != currentRate)
                         {
                             //Console.WriteLine(currentRate);
@@ -56,11 +60,13 @@ namespace Tests
 								}
 							}
                         }
-				};
+						if (workerSpin > 0)
+							ThreadPool.QueueUserWorkItem(state => Thread.SpinWait (workerSpin));
+					};
 
                 using (cannon = new Cannon(action))
                 {
-                    Console.WriteLine("Target TotalMean Diff/Target Min Median Max");
+                    Console.WriteLine("Target TotalMean Diff/Target Min Median Max Spun");
                     for (var i = 3; i < 6; i++)
                     {
                         for (var j = 1; j < 6; j += 4)
@@ -74,6 +80,7 @@ namespace Tests
                                 Thread.Sleep(50);
                             
 							long localTotalEvents = Interlocked.Read(ref totalEvents);
+							long localTotalSpun = Interlocked.Read(ref totalSpun);
 							lock (sw)
 							{
 								var m = GetMinMeanMedianMax(actualRates);
@@ -81,7 +88,8 @@ namespace Tests
 //								Console.WriteLine ("total events / elapsed seconds " + localTotalEvents + " / " + sw.Elapsed.TotalSeconds);
                             	Console.WriteLine(rate + " " + 
 								                  (int) Math.Round(mean) + " " + 
-								                  ((mean - rate) / rate) + " " + m.Item1 + " " + m.Item3 + " " + m.Item4);
+								                  ((mean - rate) / rate) + " " + m.Item1 + " " + m.Item3 + " " + m.Item4 + " " +
+								                  localTotalSpun.ToString("E"));
 	                            actualRates.Clear();
 							}
                         }
