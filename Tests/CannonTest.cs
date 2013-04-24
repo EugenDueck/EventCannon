@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Threading;
 using EventCannon;
 
@@ -35,37 +36,60 @@ namespace Tests
             {
 #endif
                 int lastCurrentRate = 0;
-                const int checkRateCount = 10;
+                const int checkRateCount = 50;
+				long totalEvents = 0;
                 var actualRates = new List<int>(checkRateCount);
                 Cannon cannon = null;
-                using (cannon = new Cannon(currentRate =>
+				Stopwatch sw = new Stopwatch();
+				Action<int> action = currentRate =>
                     {
+						Interlocked.Increment (ref totalEvents);
                         if (lastCurrentRate != currentRate)
                         {
                             //Console.WriteLine(currentRate);
                             lastCurrentRate = currentRate;
-                            actualRates.Add(currentRate);
-                            if (actualRates.Count == checkRateCount)
-                                // ReSharper disable PossibleNullReferenceException
-                                // ReSharper disable AccessToModifiedClosure
-                                cannon.SetEventsPerSecond(0);
-                            // ReSharper restore AccessToModifiedClosure
-                            // ReSharper restore PossibleNullReferenceException
+							lock (sw)
+							{
+	                            actualRates.Add(currentRate);
+	                            if (actualRates.Count == checkRateCount)
+								{
+									sw.Stop();
+	                                // ReSharper disable PossibleNullReferenceException
+	                                // ReSharper disable AccessToModifiedClosure
+	                                cannon.SetEventsPerSecond(0);
+	                            	// ReSharper restore AccessToModifiedClosure
+	                            	// ReSharper restore PossibleNullReferenceException
+								}
+							}
                         }
-                    }))
+				};
+
+                using (cannon = new Cannon(action))
                 {
-                    Console.WriteLine("Target Min Mean Median Max");
-                    for (var i = 0; i < 7; i++)
+                    Console.WriteLine("Target TotalMean Diff/Target Min Median Max");
+                    for (var i = 3; i < 6; i++)
                     {
-                        for (var j = 1; j < 2; j += 4)
+                        for (var j = 1; j < 6; j += 4)
                         {
                             int rate = (int) Math.Pow(10, i)*j;
+							Interlocked.Exchange(ref totalEvents, 0);
+							lock (sw)
+								sw.Restart();
                             cannon.SetEventsPerSecond(rate);
                             while (cannon.GetEventsPerSecond() != 0)
                                 Thread.Sleep(50);
-                            var m = GetMinMeanMedianMax(actualRates);
-                            Console.WriteLine(rate + " " + m.Item1 + " " + m.Item2 + " " + m.Item3 + " " + m.Item4);
-                            actualRates.Clear();
+                            
+							long localTotalEvents = Interlocked.Read(ref totalEvents);
+							lock (sw)
+							{
+								var m = GetMinMeanMedianMax(actualRates);
+								var mean = localTotalEvents / sw.Elapsed.TotalSeconds; // we'll ignore the mean in m.Item2 as it's not weighted proportional to actually elapsed time
+//								Console.WriteLine ("total events / elapsed seconds " + localTotalEvents + " / " + sw.Elapsed.TotalSeconds);
+                            	Console.WriteLine(rate + " " + 
+								                  (int) Math.Round(mean) + " " + 
+								                  ((mean - rate) / rate) + " " + m.Item1 + " " + m.Item3 + " " + m.Item4);
+	                            actualRates.Clear();
+							}
                         }
                     }
                 }
