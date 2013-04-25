@@ -29,13 +29,16 @@ namespace Tests
             try
             {
 #endif
-				int workerSpin = 10;
+				int workerSpin = 0;
+		        double SwTicksPerMicrosecond = Stopwatch.Frequency / 1000d / 1000d;
+		        double SwTicksPerMillisecond = SwTicksPerMicrosecond * 1000d;
+				var workerMicrosElapsed = new LinkedList<int>();
 				Console.WriteLine ("WorkerSpin: " + workerSpin);
                 int lastCurrentRate = 0;
-                const int checkRateCount = 50;
 				long totalEvents = 0;
 				long totalSpun = 0;
-                var actualRates = new List<int>(checkRateCount);
+				long millisTest = 2000;
+                var actualRates = new List<int>(1000);
                 Cannon cannon = null;
 				Stopwatch sw = new Stopwatch();
 				Action<int, long> action = (currentRate, spun) =>
@@ -49,7 +52,7 @@ namespace Tests
 							lock (sw)
 							{
 	                            actualRates.Add(currentRate);
-	                            if (actualRates.Count == checkRateCount)
+	                            if (sw.ElapsedMilliseconds >= millisTest)
 								{
 									sw.Stop();
 	                                // ReSharper disable PossibleNullReferenceException
@@ -61,12 +64,22 @@ namespace Tests
 							}
                         }
 						if (workerSpin > 0)
-							ThreadPool.QueueUserWorkItem(state => Thread.SpinWait (workerSpin));
+							ThreadPool.QueueUserWorkItem(state => 
+                            {
+								Stopwatch sww = Stopwatch.StartNew();
+								SleepSpin.usleep(workerSpin);
+								var elapsedTicks = sww.ElapsedTicks;
+//								Thread.SpinWait (workerSpin);
+								lock(workerMicrosElapsed)
+									workerMicrosElapsed.AddLast ((int) (elapsedTicks / SwTicksPerMicrosecond));
+							});
 					};
 
                 using (cannon = new Cannon(action))
                 {
                     Console.WriteLine("Target TotalMean Diff/Target Min Median Max Spun");
+//                    Console.WriteLine("Min Mean Median Max");
+					bool firstRound = true; // ignore first round
                     for (var i = 3; i < 6; i++)
                     {
                         for (var j = 1; j < 6; j += 4)
@@ -81,16 +94,37 @@ namespace Tests
                             
 							long localTotalEvents = Interlocked.Read(ref totalEvents);
 							long localTotalSpun = Interlocked.Read(ref totalSpun);
+							double mean;
+							Tuple<int, double, int, int> m;
 							lock (sw)
 							{
-								var m = GetMinMeanMedianMax(actualRates);
-								var mean = localTotalEvents / sw.Elapsed.TotalSeconds; // we'll ignore the mean in m.Item2 as it's not weighted proportional to actually elapsed time
+								m = GetMinMeanMedianMax(actualRates);
+	                            actualRates.Clear();
+								mean = localTotalEvents / sw.Elapsed.TotalSeconds; // we'll ignore the mean in m.Item2 as it's not weighted proportional to actually elapsed time
 //								Console.WriteLine ("total events / elapsed seconds " + localTotalEvents + " / " + sw.Elapsed.TotalSeconds);
+
+//								List<int> workerMicrosElapsedCopy;
+//								lock(workerMicrosElapsed)
+//								{
+//									workerMicrosElapsedCopy = new List<int>(workerMicrosElapsed);
+//									workerMicrosElapsed.Clear();
+//								}
+							}
+//							var w = GetMinMeanMedianMax(workerMicrosElapsedCopy);
+//                        	Console.WriteLine(w.Item1 + " " + (int) Math.Round(w.Item2) + " " + w.Item3 + " " + w.Item4);
+
+							if (firstRound)
+							{
+								firstRound = false;
+								j-= 4;
+								continue;
+							}
+							else
+							{
                             	Console.WriteLine(rate + " " + 
 								                  (int) Math.Round(mean) + " " + 
 								                  ((mean - rate) / rate) + " " + m.Item1 + " " + m.Item3 + " " + m.Item4 + " " +
 								                  localTotalSpun.ToString("E"));
-	                            actualRates.Clear();
 							}
                         }
                     }
