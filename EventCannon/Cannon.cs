@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Threading;
 
@@ -6,7 +6,7 @@ namespace EventCannon
 {
     public class Cannon : IDisposable
     {
-		private readonly Thread _thread;
+        private readonly Thread _thread;
         private volatile bool _disposed;
         private volatile int _eventsPerSecond;
         private volatile int _lastRatePerSecond;
@@ -15,22 +15,19 @@ namespace EventCannon
         public Cannon(Action<int, long> eventAction)
         {
             _eventAction = eventAction;
-			_thread = new Thread(Run, 256 * 1024) {IsBackground = true};
-			init ();
+            _thread = new Thread(Run, 256 * 1024) { IsBackground = true };
+            Init();
         }
 
         public Cannon(Action<int> eventAction)
+            : this((rate, spun) => eventAction(rate))
         {
-            _eventAction = (rate, spun) => eventAction(rate);
-			init ();
         }
 
-		private void init ()
-		{
-			Console.WriteLine("Thread prio: " + _thread.Priority);
-//			_thread.Priority--;
+        private void Init()
+        {
             _thread.Start();
-		}
+        }
 
         public void SetEventsPerSecond(int eventsPerSecond)
         {
@@ -58,7 +55,7 @@ namespace EventCannon
         private void Run()
         {
             int lastEventsPerSecTarget = 0;
-			long lastSpun = 0;
+            long lastSpun = 0;
             long eventsInThisInterval = 0;
             int currentSleepMicrosBetweenEvents = 0;
             const int checkActualPerformanceMillis = 250;
