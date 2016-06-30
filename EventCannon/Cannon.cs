@@ -15,7 +15,7 @@ namespace EventCannon
         public Cannon(Action<int, long> eventAction)
         {
             _eventAction = eventAction;
-            _thread = new Thread(Run, 256 * 1024) { IsBackground = true };
+            _thread = new Thread(Run) { IsBackground = true };
             Init();
         }
 
