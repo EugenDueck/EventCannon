@@ -20,12 +20,36 @@ namespace Tests
         public static extern uint TimeEndPeriod(uint uMilliseconds);
 #endif
 
+        private static void SleepTest()
+        {
+            Console.WriteLine("Target Mean Diff/Target Min Median Max");
+            const int repetitions = 25;
+            foreach (int micros in new[] { 0, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000 })
+            {
+                var measurements = new List<double>(repetitions);
+                for (int repetition = 0; repetition < repetitions; repetition++)
+                {
+                    var sw = Stopwatch.StartNew();
+                    SleepSpin.usleep(micros);
+                    sw.Stop();
+                    measurements.Add(sw.Elapsed.TotalMilliseconds * 1000);
+                }
+                var m = GetMinMeanMedianMax(measurements);
+                Console.WriteLine(micros + " " + m.Item2 + " " + ((m.Item2 - micros) / micros) + " " + m.Item1 + " " + m.Item3 + " " + m.Item4 + " ");
+            }
+        }
         public static void Main(string[] args)
         {
+
 #if !__MonoCS__
-            if (TimeBeginPeriod(1) != 0)
+            if (false && TimeBeginPeriod(1) != 0)
                 throw new Exception("Call to TimeBeginPeriod(1) not successful!");
 
+            Console.WriteLine("------------");
+            SleepTest();
+            Console.WriteLine("------------");
+            SleepTest();
+            return;
             try
             {
 #endif
@@ -57,9 +81,9 @@ namespace Tests
 									sw.Stop();
 	                                // ReSharper disable PossibleNullReferenceException
 	                                // ReSharper disable AccessToModifiedClosure
-	                                cannon.SetEventsPerSecond(0);
-	                            	// ReSharper restore AccessToModifiedClosure
-	                            	// ReSharper restore PossibleNullReferenceException
+								    cannon.EventsPerSecond = 0;
+								    // ReSharper restore AccessToModifiedClosure
+								    // ReSharper restore PossibleNullReferenceException
 								}
 							}
                         }
@@ -88,8 +112,8 @@ namespace Tests
 							Interlocked.Exchange(ref totalEvents, 0);
 							lock (sw)
 								sw.Restart();
-                            cannon.SetEventsPerSecond(rate);
-                            while (cannon.GetEventsPerSecond() != 0)
+                            cannon.EventsPerSecond = rate;
+                            while (cannon.EventsPerSecond != 0)
                                 Thread.Sleep(50);
                             
 							long localTotalEvents = Interlocked.Read(ref totalEvents);
@@ -146,6 +170,27 @@ namespace Tests
             int max = Int32.MinValue;
             // ReSharper disable SuspiciousTypeConversion.Global
             var list = new List<int>(values is ICollection ? ((ICollection)values).Count : 100);
+            // ReSharper restore SuspiciousTypeConversion.Global
+            foreach (var value in values)
+            {
+                if (value < min)
+                    min = value;
+                if (value > max)
+                    max = value;
+                sum += value;
+                list.Add(value);
+            }
+            list.Sort();
+            return Tuple.Create(min, sum / list.Count, list[list.Count / 2], max);
+        }
+
+        private static Tuple<double, double, double, double> GetMinMeanMedianMax(IEnumerable<double> values)
+        {
+            double sum = 0;
+            double min = Double.MaxValue;
+            double max = Double.MinValue;
+            // ReSharper disable SuspiciousTypeConversion.Global
+            var list = new List<double>(values is ICollection ? ((ICollection)values).Count : 100);
             // ReSharper restore SuspiciousTypeConversion.Global
             foreach (var value in values)
             {
