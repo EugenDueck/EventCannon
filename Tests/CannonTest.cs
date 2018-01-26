@@ -81,7 +81,7 @@ namespace Tests
 									sw.Stop();
 	                                // ReSharper disable PossibleNullReferenceException
 	                                // ReSharper disable AccessToModifiedClosure
-								    cannon.EventsPerSecond = 0;
+								    cannon.SetEventsPerSecond(0);
 								    // ReSharper restore AccessToModifiedClosure
 								    // ReSharper restore PossibleNullReferenceException
 								}
@@ -112,8 +112,8 @@ namespace Tests
 							Interlocked.Exchange(ref totalEvents, 0);
 							lock (sw)
 								sw.Restart();
-                            cannon.EventsPerSecond = rate;
-                            while (cannon.EventsPerSecond != 0)
+                            cannon.SetEventsPerSecond(rate);
+                            while (cannon.GetEventsPerSecond() != 0)
                                 Thread.Sleep(50);
                             
 							long localTotalEvents = Interlocked.Read(ref totalEvents);

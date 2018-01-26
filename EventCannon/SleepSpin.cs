@@ -13,7 +13,6 @@ namespace EventCannon
         private static readonly double SwTicksPerMicrosecond = Stopwatch.Frequency / 1000d / 1000d;
         private static readonly double SwTicksPerMillisecond = SwTicksPerMicrosecond * 1000d;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static long ElapsedTicks(long startTicks)
         {
             return Stopwatch.GetTimestamp() - startTicks;
