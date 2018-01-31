@@ -1,7 +1,6 @@
 EventCannon
 ===========
 
-A .net library that creates events at a predetermined rate in Hz.
 
 It will try to `Thread.Sleep()` in-between events, but as Sleep's accuracy is 15.6ms (or e.g. 1ms, when changed via `timeBeginPeriod(1)`, which the cannon does not do itself, so you hvae to, if you want that), the fine-tuning is always done using `Thread.SpinWait()`. This means that for rates higher than roughly 1 / 2 * sleepAccuracy, Sleep() won't be used at all and **one core of your machine will be pegged at 100% continuously. You have been warned!**
 
