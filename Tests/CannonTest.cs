@@ -45,11 +45,11 @@ namespace Tests
             if (false && TimeBeginPeriod(1) != 0)
                 throw new Exception("Call to TimeBeginPeriod(1) not successful!");
 
-            Console.WriteLine("------------");
-            SleepTest();
-            Console.WriteLine("------------");
-            SleepTest();
-            return;
+            //Console.WriteLine("------------");
+            //SleepTest();
+            //Console.WriteLine("------------");
+            //SleepTest();
+            //return;
             try
             {
 #endif
@@ -64,8 +64,9 @@ namespace Tests
 				long millisTest = 2000;
                 var actualRates = new List<int>(1000);
                 Cannon cannon = null;
-				Stopwatch sw = new Stopwatch();
-				Action<int, long> action = (currentRate, spun) =>
+                Stopwatch sw = new Stopwatch();
+                Stopwatch swAction = new Stopwatch();
+                Action<int, long> action = (currentRate, spun) =>
                     {
 						Interlocked.Increment (ref totalEvents);
 						Interlocked.Add(ref totalSpun, spun);
@@ -73,15 +74,17 @@ namespace Tests
                         {
                             //Console.WriteLine(currentRate);
                             lastCurrentRate = currentRate;
-							lock (sw)
+                            //lock (sw)
 							{
 	                            actualRates.Add(currentRate);
-	                            if (sw.ElapsedMilliseconds >= millisTest)
+	                            if (swAction.ElapsedMilliseconds >= millisTest)
 								{
-									sw.Stop();
-	                                // ReSharper disable PossibleNullReferenceException
+                                    lock (sw)
+                                        sw.Stop();
+                                    swAction.Stop();
+                                    // ReSharper disable PossibleNullReferenceException
 	                                // ReSharper disable AccessToModifiedClosure
-								    cannon.SetEventsPerSecond(0);
+								    cannon.EventsPerSecond = 0;
 								    // ReSharper restore AccessToModifiedClosure
 								    // ReSharper restore PossibleNullReferenceException
 								}
@@ -110,10 +113,11 @@ namespace Tests
                         {
                             int rate = (int) Math.Pow(10, i)*j;
 							Interlocked.Exchange(ref totalEvents, 0);
-							lock (sw)
+                            lock (sw)
 								sw.Restart();
-                            cannon.SetEventsPerSecond(rate);
-                            while (cannon.GetEventsPerSecond() != 0)
+                            swAction.Restart();
+                            cannon.EventsPerSecond = rate;
+                            while (cannon.EventsPerSecond != 0)
                                 Thread.Sleep(50);
                             
 							long localTotalEvents = Interlocked.Read(ref totalEvents);

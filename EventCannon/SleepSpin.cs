@@ -1,36 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace EventCannon
 {
     public static class SleepSpin
     {
-        private static readonly double SpinsPerMicroRoughly;
+        private static readonly double SpinsPerSwTickRoughly;
         private static readonly int SleepMillisResolution;
         private static readonly double SwTicksPerMicrosecond = Stopwatch.Frequency / 1000d / 1000d;
         private static readonly double SwTicksPerMillisecond = SwTicksPerMicrosecond * 1000d;
-
-        private static long ElapsedTicks(long startTicks)
-        {
-            return Stopwatch.GetTimestamp() - startTicks;
-        }
 
         static SleepSpin()
         {
             const int count = 250000;
             const int spins = 100;
 
-			SpinsPerMicroRoughly = spins / GetMedianMicrosPerSpinWait(count, spins);
+			SpinsPerSwTickRoughly = spins / GetMedianSwTicksPerSpinWait(count, spins);
 
             var sleepOneTimes = new List<int>();
             for (int i = 0; i < 100; i++)
             {
                 var ticksBefore = Stopwatch.GetTimestamp();
                 Thread.Sleep(1);
-                sleepOneTimes.Add((int)Math.Ceiling(ElapsedTicks(ticksBefore) / SwTicksPerMillisecond));
+                sleepOneTimes.Add((int)Math.Ceiling((Stopwatch.GetTimestamp() - ticksBefore) / SwTicksPerMillisecond));
             }
             SleepMillisResolution = Median(sleepOneTimes);
         }
@@ -52,42 +46,60 @@ namespace EventCannon
 		// TODO: 20 was chosen somewhat arbitrarily
 		// On my system here, a value of 2 or less would decrease accuracy,
 		// but taking cpu frequency scaling into account, I figured to go 20
-		private const double spinTimeDivisor = 20;
+		private const double SpinTimeDivisor = 20;
 
-        private static readonly WaitHandle DummyWaitHandle = new AutoResetEvent(false);
+        private static long StopwatchTicksToMicroseconds(long stopwatchTicks)
+        {
+            return stopwatchTicks * 1000000 / Stopwatch.Frequency;
+        }
+
+        private static long MicrosecondsToStopwatchTicks(long microseconds)
+        {
+            return microseconds * Stopwatch.Frequency / 1000000;
+        }
 
         public static long usleep(long micros)
         {
             bool waitHandleSignaled;
-            return usleep(micros, out waitHandleSignaled, DummyWaitHandle);
+            return usleep(micros, out waitHandleSignaled, null);
         }
-
 
         public static long usleep(long micros, out bool waitHandleSignaled, WaitHandle waitHandle)
         {
+            return usleepSW(MicrosecondsToStopwatchTicks(micros), out waitHandleSignaled, waitHandle);
+        }
+
+        public static long usleepSW(long stopwatchTicks)
+        {
+            bool waitHandleSignaled;
+            return usleepSW(stopwatchTicks, out waitHandleSignaled, null);
+        }
+
+        public static long usleepSW(long stopwatchTicks, out bool waitHandleSignaled, WaitHandle waitHandle)
+        {
             long spun = 0;
-            if (micros > 0)
+            if (stopwatchTicks > 0)
             {
-                var ticksAtStart = Stopwatch.GetTimestamp();
-                int millis = (int) Math.Min(int.MaxValue, micros/1000);
+                var endTimestamp = Stopwatch.GetTimestamp() + stopwatchTicks;
+                int millis = (int) Math.Min(int.MaxValue, StopwatchTicksToMicroseconds(stopwatchTicks)/1000);
                 if (millis >= SleepMillisResolution*2)
                 {
-                    if (waitHandle.WaitOne(millis - (SleepMillisResolution*2)))
+                    if (waitHandle != null && waitHandle.WaitOne(millis - (SleepMillisResolution * 2)))
                     {
                         waitHandleSignaled = true;
                         return 0;
                     }
                 }
 
-                long microsToGo;
-                while ((microsToGo = micros - (long) (ElapsedTicks(ticksAtStart)/SwTicksPerMicrosecond)) > 0)
+                long ticksToGo;
+                while ((ticksToGo = endTimestamp - Stopwatch.GetTimestamp()) > 0)
                 {
-                    int spin = (int) (SpinsPerMicroRoughly*microsToGo/spinTimeDivisor);
+                    int spin = (int) (SpinsPerSwTickRoughly*ticksToGo/SpinTimeDivisor);
                     spun += spin;
                     Thread.SpinWait(spin);
                 }
             }
-            waitHandleSignaled = waitHandle.WaitOne(0);
+            waitHandleSignaled = waitHandle != null && waitHandle.WaitOne(0);
 			return spun;
         }
 
@@ -98,16 +110,16 @@ namespace EventCannon
             return copy[copy.Count / 2];
         }
 
-        private static double GetMedianMicrosPerSpinWait(int count, int spins)
+        private static double GetMedianSwTicksPerSpinWait(int count, int spins)
         {
             var elapsedTicks = new List<long>(count);
             for (int i = 1; i <= count; i++)
             {
                 var ticksBefore = Stopwatch.GetTimestamp();
                 Thread.SpinWait(spins);
-                elapsedTicks.Add(ElapsedTicks(ticksBefore));
+                elapsedTicks.Add(Stopwatch.GetTimestamp() - ticksBefore);
             }
-            return Median(elapsedTicks) / SwTicksPerMicrosecond;
+            return Median(elapsedTicks);
         }
     }
 }
